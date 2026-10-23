@@ -81,6 +81,45 @@ public class Win32WindowService : IWindowService
         );
     }
 
+    public void ApplyLayout(IReadOnlyDictionary<IntPtr, ScreenRectangle> layout)
+    {
+        if (layout.Count == 0) return;
+
+        IntPtr hdwp = User32.BeginDeferWindowPos(layout.Count);
+        if (hdwp == IntPtr.Zero)
+        {
+            foreach (var (handle, bounds) in layout)
+            {
+                SetWindowPosition(handle, bounds);
+            }
+            return;
+        }
+
+        foreach (var (handle, bounds) in layout)
+        {
+            hdwp = User32.DeferWindowPos(
+                hdwp,
+                handle,
+                IntPtr.Zero,
+                bounds.X,
+                bounds.Y,
+                bounds.Width,
+                bounds.Height,
+                User32.SWP_NOZORDER | User32.SWP_NOACTIVATE | User32.SWP_FRAMECHANGED
+            );
+
+            if (hdwp == IntPtr.Zero)
+            {
+                break;
+            }
+        }
+
+        if (hdwp != IntPtr.Zero)
+        {
+            User32.EndDeferWindowPos(hdwp);
+        }
+    }
+
     private static bool IsManageableWindow(IntPtr hWnd, out ManagedWindow window)
     {
         window = null!;
@@ -93,7 +132,7 @@ public class Win32WindowService : IWindowService
         if (DwmApi.DwmGetWindowAttribute(hWnd, DwmApi.DWMWA_CLOAKED, out int cloaked, sizeof(int)) == 0 && cloaked != 0)
             return false;
 
-        // 3. Must have valid title
+        // 3. Must have title
         var titleBuilder = new StringBuilder(512);
         int textLength = User32.GetWindowText(hWnd, titleBuilder, titleBuilder.Capacity);
         if (textLength == 0)

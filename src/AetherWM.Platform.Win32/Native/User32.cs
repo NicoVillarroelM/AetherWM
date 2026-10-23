@@ -97,4 +97,23 @@ public static class User32
         int cy,
         uint uFlags
     );
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr BeginDeferWindowPos(int nNumWindows);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr DeferWindowPos(
+        IntPtr hWinPosInfo,
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int x,
+        int y,
+        int cx,
+        int cy,
+        uint uFlags
+    );
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool EndDeferWindowPos(IntPtr hWinPosInfo);
 }

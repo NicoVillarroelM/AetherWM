@@ -3,7 +3,7 @@ using AetherWM.Core.Models;
 namespace AetherWM.Core.Interfaces;
 
 /// <summary>
-/// Operating system abstraction for window querying and placement.
+/// Operating system abstraction for window querying, positioning, and tiling.
 /// </summary>
 public interface IWindowService
 {
@@ -19,7 +19,12 @@ public interface IWindowService
     ScreenRectangle GetPrimaryMonitorWorkArea();
 
     /// <summary>
-    /// Repositions and resizes a window safely.
+    /// Repositions and resizes a single window safely.
     /// </summary>
     void SetWindowPosition(IntPtr handle, ScreenRectangle bounds);
+
+    /// <summary>
+    /// Repositions multiple windows atomically in a single redraw cycle to prevent flicker.
+    /// </summary>
+    void ApplyLayout(IReadOnlyDictionary<IntPtr, ScreenRectangle> layout);
 }
