@@ -1,55 +1,74 @@
 # AetherWM 🪟⚡
 
-> A lightweight, modular tiling window manager and ricing suite for Windows 10 & 11, inspired by the Linux desktop experience (bspwm, Hyprland, Polybar).
+> Un gestor de ventanas en mosaico (Tiling Window Manager) y suite de personalización modular, ultraligero y de código abierto para Windows 10 y 11, inspirado en la experiencia y filosofía de Linux (bspwm, Hyprland, Polybar).
 
 ---
 
-## 🌟 Vision
+## 🌟 Visión del Proyecto
 
-**AetherWM** brings the minimalist, keyboard-centric, and highly customizable workflow of Linux tiling window managers to Windows, without bloatware, proprietary black boxes, or kernel-level modifications.
+**AetherWM** traslada el flujo de trabajo minimalista, modular y controlado por teclado propio de Linux al entorno de Windows, sin necesidad de software propietario pesado, sin telemetría invasiva y sin modificar archivos protegidos del sistema operativo.
 
-- 🧩 **Binary Space Partitioning (BSP)**: Automatically tiles and organizes your windows without manual dragging.
-- ⚡ **Lightning Fast & Ultra-lightweight**: Built with .NET 9 and native Win32/DWM APIs.
-- ⌨️ **Vim-inspired Keyboard Navigation**: Control focus, swaps, and workspaces entirely from your keyboard.
-- 📜 **Dotfile Driven**: Single readable configuration file (`config.json` / `config.toml`) with hot-reload.
-- 📊 **Modular Architecture**: Separate Core, Win32 Platform layer, and Daemon, ready for status bar and launcher extensions.
+- 🧩 **Partición de Espacio Binario (BSP)**: Organiza y ajusta automáticamente tus ventanas en mosaico dinámico sin tener que arrastrarlas manualmente.
+- ⚡ **Ultraligero y Rendimiento Nativo**: Desarrollado en .NET 9 interactuando de forma directa y segura con las APIs de bajo nivel de Windows (Win32 y DWM).
+- ⌨️ **Navegación Eficiente por Teclado**: Control de foco, intercambio de ventanas y escritorios mediante atajos inspirados en Vim.
+- 📜 **Configuración mediante Dotfiles**: Archivo de configuración único, limpio y legible (`config.json` / `config.toml`) con recarga en caliente (*hot-reload*) al guardar cambios.
+- 🧱 **Arquitectura Totalmente Modular**: Lógica matemática pura desacoplada de las llamadas a Windows, lista para acoplar barra superior (*status bar*) y lanzador rápido (*launcher*).
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Arquitectura Modular
 
 ```
 AetherWM/
 ├── src/
-│   ├── AetherWM.Core/           # Pure tiling logic, BSP tree math, models & interfaces
-│   ├── AetherWM.Platform.Win32/ # Safe wrappers for Win32 API (User32, DwmApi, Shell32)
-│   └── AetherWM.Daemon/         # Background service, hotkey engine & event loop
+│   ├── AetherWM.Core/           # Lógica pura de mosaicos, árbol BSP, modelos e interfaces
+│   ├── AetherWM.Platform.Win32/ # Capa aislada y segura de APIs de Windows (User32, DwmApi, Shell32)
+│   └── AetherWM.Daemon/         # Servicio en segundo plano, atajos de teclado y bucle de eventos
 ├── tests/
-│   └── AetherWM.Core.Tests/     # Unit tests for screen partitioning and tree logic
-└── AetherWM.sln
+│   └── AetherWM.Core.Tests/     # Pruebas unitarias automatizadas de geometría y layouts
+└── AetherWM.slnx
 ```
 
 ---
 
-## 🚀 Building & Running
+## 🚀 Compilación y Pruebas Locales
 
-### Prerequisites
-- [.NET 9.0+ SDK](https://dotnet.microsoft.com/download)
-- Windows 10 (version 1903+) or Windows 11
+### Requisitos
+- [SDK de .NET 9.0 o superior](https://dotnet.microsoft.com/download)
+- Windows 10 (versión 1903+) o Windows 11
 
-### Build from source
+### Compilar desde el código fuente
 ```powershell
-git clone https://github.com/your-username/AetherWM.git
+git clone https://github.com/NicoVillarroelM/AetherWM.git
 cd AetherWM
 dotnet build
 ```
 
-### Run tests
+### Ejecutar las pruebas unitarias
 ```powershell
 dotnet test
 ```
 
+### Probar el Daemon en tiempo real
+```powershell
+dotnet run --project src/AetherWM.Daemon
+```
+
 ---
 
-## 📄 License
-This project is licensed under the [MIT License](LICENSE).
+## 🗺️ Hoja de Ruta (Roadmap)
+
+- [x] **Sprint 0**: Estructura modular, repositorio Git y configuración base.
+- [x] **Sprint 1**: Detección nativa de ventanas de usuario y filtrado inteligente del sistema.
+- [ ] **Sprint 2**: Motor de partición en mosaico (Binary Space Partitioning Tree).
+- [ ] **Sprint 3**: Gestor de atajos globales y modo flotante/mosaico.
+- [ ] **Sprint 4**: Archivo de configuración (`dotfiles`) con recarga en caliente.
+- [ ] **Sprint 5**: Barra de estado superior translúcida (AetherBar con AppBar nativa).
+- [ ] **Sprint 6**: Lanzador modal de aplicaciones (AetherRun).
+- [ ] **Sprint 7**: Empaquetado nativo (Native AOT) y publicación en Winget.
+
+---
+
+## 📄 Licencia
+
+Este proyecto está bajo la [Licencia MIT](LICENSE). Siéntete libre de usarlo, modificarlo y contribuir.
