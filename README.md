@@ -1,6 +1,6 @@
 # AetherWM 🪟⚡
 
-> Un gestor de ventanas en mosaico (Tiling Window Manager) y suite de personalización modular, ultraligero y de código abierto para Windows 10 y 11, inspirado en la experiencia y filosofía de Linux (bspwm, Hyprland, Polybar).
+> Un gestor de ventanas en mosaico (Tiling Window Manager) y suite de personalización modular, ultraligero y de código abierto para Windows 10 y 11, inspirado en la experiencia y filosofía de Linux (bspwm, Hyprland, Polybar, Conky/eww).
 
 ---
 
@@ -9,10 +9,12 @@
 **AetherWM** traslada el flujo de trabajo minimalista, modular y controlado por teclado propio de Linux al entorno de Windows, sin necesidad de software propietario pesado, sin telemetría invasiva y sin modificar archivos protegidos del sistema operativo.
 
 - 🧩 **Partición de Espacio Binario (BSP)**: Organiza y ajusta automáticamente tus ventanas en mosaico dinámico sin tener que arrastrarlas manualmente.
+- 🎨 **Bordes Neón Dinámicos (Efecto Hyprland)**: Resalta la ventana en foco con bordes de color personalizados y esquinas rectas o redondeadas con DWM nativo.
+- 🕒 **Widgets de Escritorio Nativos (Estilo Conky/eww)**: Paneles translúcidos integrados al fondo de pantalla con reloj minimalista gigante y monitores de CPU y Memoria RAM en tiempo real.
 - ⚡ **Ultraligero y Rendimiento Nativo**: Desarrollado en .NET interactuando de forma directa y segura con las APIs de bajo nivel de Windows (Win32 y DWM).
 - ⌨️ **Navegación Eficiente por Teclado**: Control de foco, intercambio de ventanas y acciones rápidas mediante atajos inspirados en Vim.
 - 📜 **Configuración mediante Dotfiles**: Archivo de configuración único, limpio y legible (`config.json`) alojado en `%USERPROFILE%\.config\aetherwm\` con recarga en caliente (*hot-reload*) al guardar cambios.
-- 🧱 **Arquitectura Totalmente Modular**: Lógica matemática pura desacoplada de las llamadas a Windows, lista para acoplar barra superior (*status bar*) y lanzador rápido (*launcher*).
+- 🧱 **Arquitectura Totalmente Modular**: Desacoplado en capas independientes listas para ampliaciones.
 
 ---
 
@@ -24,10 +26,11 @@ AetherWM/
 │   └── config.example.json      # Plantilla base de dotfiles para el usuario
 ├── src/
 │   ├── AetherWM.Core/           # Lógica pura de mosaicos, árbol BSP, parser de atajos, modelos
-│   ├── AetherWM.Platform.Win32/ # Capa aislada y segura de Win32 (Hooks, DWM, Hotkeys, FileWatcher)
-│   └── AetherWM.Daemon/         # Servicio en segundo plano, atajos de teclado y bucle de eventos
+│   ├── AetherWM.Platform.Win32/ # Capa aislada de Win32 (Hooks, DWM, Hotkeys, Hardware Monitor)
+│   ├── AetherWM.Daemon/         # Servicio en segundo plano, atajos de teclado y bucle de eventos
+│   └── AetherWM.Widgets/        # Widgets translúcidos anclados al fondo de pantalla (Reloj, CPU, RAM)
 ├── tests/
-│   └── AetherWM.Core.Tests/     # Pruebas unitarias automatizadas (Geometría, BSP y Atajos)
+│   └── AetherWM.Core.Tests/     # Pruebas unitarias automatizadas (Geometría, BSP, Atajos, Colores)
 └── AetherWM.slnx
 ```
 
@@ -42,14 +45,14 @@ AetherWM/
 | `Alt + Shift + Q` | **CloseWindow** | Cierra la ventana activa enfrente de forma segura (`WM_CLOSE`) |
 | `Alt + Shift + H` | **FocusLeft** | Mueve el foco a la ventana anterior |
 | `Alt + Shift + L` | **FocusRight** | Mueve el foco a la siguiente ventana |
-| `Alt + Shift + Escape`| **Quit** | Restaura todas las ventanas a su tamaño original y cierra el daemon |
+| `Alt + Shift + Escape`| **Quit** | Restaura todas las ventanas y bordes a su estado original |
 
 > [!TIP]
-> Todos los atajos y márgenes se pueden personalizar libremente editando tu archivo `%USERPROFILE%\.config\aetherwm\config.json`. Al guardar el archivo en VS Code / Notepad, los cambios se aplican automáticamente sin reiniciar el programa.
+> Todos los atajos, bordes, esquinas y márgenes se pueden personalizar libremente editando tu archivo `%USERPROFILE%\.config\aetherwm\config.json`. Al guardar el archivo en VS Code / Notepad, los cambios se aplican automáticamente sin reiniciar el programa.
 
 ---
 
-## 🚀 Compilación y Pruebas Locales
+## 🚀 Compilación y Ejecución Local
 
 ### Requisitos
 - [SDK de .NET 9.0 o superior](https://dotnet.microsoft.com/download)
@@ -62,12 +65,12 @@ cd AetherWM
 dotnet build
 ```
 
-### Ejecutar las pruebas unitarias
+### Ejecutar el Widget de Escritorio
 ```powershell
-dotnet test
+dotnet run --project src/AetherWM.Widgets
 ```
 
-### Ejecutar el Daemon
+### Ejecutar el Gestor de Ventanas (Daemon)
 ```powershell
 dotnet run --project src/AetherWM.Daemon
 ```
@@ -81,9 +84,11 @@ dotnet run --project src/AetherWM.Daemon
 - [x] **Sprint 2**: Motor de partición en mosaico (Binary Space Partitioning Tree).
 - [x] **Sprint 3**: Gestor de atajos globales (`RegisterHotKey` en bucle de mensajes STA).
 - [x] **Sprint 4**: Archivo de configuración (`dotfiles`) con recarga en caliente (*hot-reload*).
-- [ ] **Sprint 5**: Barra de estado superior translúcida (AetherBar con AppBar nativa).
-- [ ] **Sprint 6**: Lanzador modal de aplicaciones (AetherRun).
-- [ ] **Sprint 7**: Empaquetado nativo (Native AOT) y publicación en Winget.
+- [x] **Sprint 5 (Visual 1)**: Bordes de colores dinámicos y personalización DWM (Efecto Hyprland).
+- [x] **Sprint 6 (Visual 2)**: Widgets nativos de escritorio (Reloj minimalista, monitor de CPU y RAM).
+- [ ] **Sprint 7**: Barra de estado superior translúcida (AetherBar con AppBar nativa).
+- [ ] **Sprint 8**: App gráfica de configuración (AetherControlCenter).
+- [ ] **Sprint 9**: Empaquetado nativo (Native AOT) y publicación en Winget.
 
 ---
 
