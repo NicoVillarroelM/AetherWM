@@ -3,6 +3,7 @@
     <Project Path="src/AetherWM.Core/AetherWM.Core.csproj" />
     <Project Path="src/AetherWM.Daemon/AetherWM.Daemon.csproj" />
     <Project Path="src/AetherWM.Platform.Win32/AetherWM.Platform.Win32.csproj" />
+    <Project Path="src/AetherWM.Settings/AetherWM.Settings.csproj" />
     <Project Path="src/AetherWM.Widgets/AetherWM.Widgets.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -68,6 +68,28 @@ public class FileSystemConfigService : IConfigService
         }
     }
 
+    public void SaveConfig(AetherConfig config)
+    {
+        lock (_lock)
+        {
+            try
+            {
+                if (!Directory.Exists(_configDirectory))
+                {
+                    Directory.CreateDirectory(_configDirectory);
+                }
+
+                CurrentConfig = config;
+                string json = JsonSerializer.Serialize(config, JsonOptions);
+                File.WriteAllText(_configFilePath, json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Config Error] Could not save config: {ex.Message}");
+            }
+        }
+    }
+
     private void SetupWatcher()
     {
         if (_watcher != null) return;
@@ -93,13 +115,11 @@ public class FileSystemConfigService : IConfigService
     {
         lock (_lock)
         {
-            // Debounce within 300ms
             if (DateTime.UtcNow - _lastReadTime < TimeSpan.FromMilliseconds(300))
                 return;
 
             _lastReadTime = DateTime.UtcNow;
 
-            // Short retry loop in case file is still locked by the editor
             for (int i = 0; i < 3; i++)
             {
                 try

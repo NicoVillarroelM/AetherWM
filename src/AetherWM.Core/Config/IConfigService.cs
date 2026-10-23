@@ -24,4 +24,9 @@ public interface IConfigService : IDisposable
     /// Loads existing configuration or initializes default config file.
     /// </summary>
     AetherConfig LoadOrCreateDefault();
+
+    /// <summary>
+    /// Persists updated configuration to disk.
+    /// </summary>
+    void SaveConfig(AetherConfig config);
 }
