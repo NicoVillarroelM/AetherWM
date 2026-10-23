@@ -5,10 +5,19 @@ namespace AetherWM.Core.Config;
 /// </summary>
 public class AetherConfig
 {
+    // Layout and Gaps
     public int InnerGap { get; set; } = 10;
     public int OuterGap { get; set; } = 12;
-    public string TerminalPath { get; set; } = "wt.exe";
     public bool AutoTileOnLaunch { get; set; } = true;
+
+    // Window Aesthetics (Windows 11 DWM)
+    public bool EnableBorderStyling { get; set; } = true;
+    public string ActiveBorderColor { get; set; } = "#00F0FF";   // Neon Cyan
+    public string InactiveBorderColor { get; set; } = "#2E3440"; // Dark Slate Gray
+    public string CornerPreference { get; set; } = "Square";     // "Square", "Rounded", "Default"
+
+    // System
+    public string TerminalPath { get; set; } = "wt.exe";
 
     public List<string> IgnoredProcesses { get; set; } =
     [

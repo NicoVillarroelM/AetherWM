@@ -8,12 +8,60 @@ namespace AetherWM.Platform.Win32.Services;
 
 public class Win32WindowService : IWindowService
 {
+    private IntPtr _focusHook;
+    private User32.WinEventDelegate? _focusDelegate;
+
+    public event Action<IntPtr>? WindowFocused;
+
     private static readonly HashSet<string> ExcludedTitles = new(StringComparer.OrdinalIgnoreCase)
     {
         "Program Manager",
         "Experiencia de entrada de Windows",
         "Windows Input Experience"
     };
+
+    public void StartFocusTracking()
+    {
+        if (_focusHook != IntPtr.Zero) return;
+
+        _focusDelegate = (hWinEventHook, eventType, hWnd, idObject, idChild, dwEventThread, dwmsEventTime) =>
+        {
+            if (eventType == User32.EVENT_SYSTEM_FOREGROUND && hWnd != IntPtr.Zero)
+            {
+                WindowFocused?.Invoke(hWnd);
+            }
+        };
+
+        _focusHook = User32.SetWinEventHook(
+            User32.EVENT_SYSTEM_FOREGROUND,
+            User32.EVENT_SYSTEM_FOREGROUND,
+            IntPtr.Zero,
+            _focusDelegate,
+            0,
+            0,
+            User32.WINEVENT_OUTOFCONTEXT | User32.WINEVENT_SKIPOWNPROCESS
+        );
+    }
+
+    public void StopFocusTracking()
+    {
+        if (_focusHook != IntPtr.Zero)
+        {
+            User32.UnhookWinEvent(_focusHook);
+            _focusHook = IntPtr.Zero;
+            _focusDelegate = null;
+        }
+    }
+
+    public void SetWindowBorderColor(IntPtr handle, uint colorRef)
+    {
+        DwmApi.DwmSetWindowAttribute(handle, DwmApi.DWMWA_BORDER_COLOR, ref colorRef, sizeof(uint));
+    }
+
+    public void SetWindowCornerPreference(IntPtr handle, int cornerPreference)
+    {
+        DwmApi.DwmSetWindowAttribute(handle, DwmApi.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference, sizeof(int));
+    }
 
     public IReadOnlyList<ManagedWindow> GetActiveWindows()
     {

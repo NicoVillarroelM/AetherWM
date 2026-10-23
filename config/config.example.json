@@ -1,8 +1,12 @@
 {
   "InnerGap": 10,
   "OuterGap": 12,
-  "TerminalPath": "wt.exe",
   "AutoTileOnLaunch": true,
+  "EnableBorderStyling": true,
+  "ActiveBorderColor": "#00F0FF",
+  "InactiveBorderColor": "#2E3440",
+  "CornerPreference": "Square",
+  "TerminalPath": "wt.exe",
   "IgnoredProcesses": [
     "Progman",
     "WorkerW",

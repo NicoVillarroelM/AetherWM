@@ -8,6 +8,15 @@ public static class User32
     public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
     public delegate bool EnumDesktopWindowsProc(IntPtr hWnd, IntPtr lParam);
     public delegate nint WndProc(IntPtr hWnd, uint msg, nint wParam, nint lParam);
+    public delegate void WinEventDelegate(
+        IntPtr hWinEventHook,
+        uint eventType,
+        IntPtr hWnd,
+        int idObject,
+        int idChild,
+        uint dwEventThread,
+        uint dwmsEventTime
+    );
 
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT
@@ -57,6 +66,10 @@ public static class User32
     public const uint WM_HOTKEY = 0x0312;
     public const uint WM_CLOSE = 0x0010;
     public const uint WM_QUIT = 0x0012;
+
+    public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    public const uint WINEVENT_OUTOFCONTEXT = 0;
+    public const uint WINEVENT_SKIPOWNPROCESS = 0x0002;
 
     public static readonly IntPtr HWND_MESSAGE = new(-3);
 
@@ -137,7 +150,6 @@ public static class User32
     public static extern bool EndDeferWindowPos(IntPtr hWinPosInfo);
 
     [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
     [DllImport("user32.dll", SetLastError = true)]
@@ -174,4 +186,19 @@ public static class User32
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetWinEventHook(
+        uint eventMin,
+        uint eventMax,
+        IntPtr hmodWinEventProc,
+        WinEventDelegate lpfnWinEventProc,
+        uint idProcess,
+        uint idThread,
+        uint dwFlags
+    );
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool UnhookWinEvent(IntPtr hWinEventHook);
 }

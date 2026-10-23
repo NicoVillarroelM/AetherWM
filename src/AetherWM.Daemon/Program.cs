@@ -4,6 +4,7 @@ using AetherWM.Core.Hotkeys;
 using AetherWM.Core.Interfaces;
 using AetherWM.Core.Models;
 using AetherWM.Core.Tiling;
+using AetherWM.Core.Utils;
 using AetherWM.Platform.Win32.Config;
 using AetherWM.Platform.Win32.Hotkeys;
 using AetherWM.Platform.Win32.Native;
@@ -21,7 +22,7 @@ Console.WriteLine(@"
 ");
 Console.ResetColor();
 
-Console.WriteLine("⚡ AetherWM Daemon - Sprint 3 & 4: Atajos Globales y Dotfiles en Caliente\n");
+Console.WriteLine("⚡ AetherWM Daemon - Bordes Dinámicos, Estilo DWM y Atajos\n");
 
 // 1. Cargar Configuración (Dotfile)
 using IConfigService configService = new FileSystemConfigService();
@@ -41,7 +42,33 @@ var tilingEngine = new TilingEngine
 };
 
 Dictionary<IntPtr, ScreenRectangle> originalPositions = [];
+IntPtr lastFocusedHandle = IntPtr.Zero;
 bool isRunning = true;
+
+// Mapear opciones de esquinas
+int GetCornerPreferenceCode(string pref) => pref.ToLowerInvariant() switch
+{
+    "square" or "straight" => DwmApi.DWMWCP_DONOTROUND,
+    "rounded" => DwmApi.DWMWCP_ROUND,
+    "small" => DwmApi.DWMWCP_ROUNDSMALL,
+    _ => DwmApi.DWMWCP_DEFAULT
+};
+
+// Aplicar estilos visuales (bordes de colores y esquinas)
+void ApplyVisualStyles(IEnumerable<IntPtr> handles, IntPtr focusedHandle)
+{
+    if (!config.EnableBorderStyling) return;
+
+    uint activeColor = ColorUtils.ToColorRef(config.ActiveBorderColor);
+    uint inactiveColor = ColorUtils.ToColorRef(config.InactiveBorderColor);
+    int cornerCode = GetCornerPreferenceCode(config.CornerPreference);
+
+    foreach (var h in handles)
+    {
+        windowService.SetWindowCornerPreference(h, cornerCode);
+        windowService.SetWindowBorderColor(h, h == focusedHandle ? activeColor : inactiveColor);
+    }
+}
 
 // Función para retilar ventanas
 void RetileWindows()
@@ -49,7 +76,6 @@ void RetileWindows()
     var workArea = windowService.GetPrimaryMonitorWorkArea();
     var activeWindows = windowService.GetActiveWindows();
 
-    // Guardar posición inicial si no se tenía
     foreach (var win in activeWindows)
     {
         originalPositions.TryAdd(win.Handle, win.Bounds);
@@ -60,18 +86,40 @@ void RetileWindows()
     var layout = tilingEngine.GenerateLayout(workArea);
     windowService.ApplyLayout(layout);
 
+    IntPtr currentForeground = User32.GetForegroundWindow();
+    ApplyVisualStyles(handles, currentForeground);
+
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"[AetherWM] Mosaico actualizado: {layout.Count} ventanas ordenadas (Gaps: Int={tilingEngine.InnerGap}px, Ext={tilingEngine.OuterGap}px)");
+    Console.WriteLine($"[AetherWM] Mosaico y estilos actualizados: {layout.Count} ventanas (Gaps: {tilingEngine.InnerGap}px | Borde activo: {config.ActiveBorderColor})");
     Console.ResetColor();
 }
+
+// Escuchar cambios de foco de ventanas en tiempo real (Resaltar ventana activa con DWM)
+windowService.WindowFocused += (newFocusHandle) =>
+{
+    if (!config.EnableBorderStyling) return;
+
+    uint activeColor = ColorUtils.ToColorRef(config.ActiveBorderColor);
+    uint inactiveColor = ColorUtils.ToColorRef(config.InactiveBorderColor);
+
+    if (lastFocusedHandle != IntPtr.Zero && lastFocusedHandle != newFocusHandle)
+    {
+        windowService.SetWindowBorderColor(lastFocusedHandle, inactiveColor);
+    }
+
+    windowService.SetWindowBorderColor(newFocusHandle, activeColor);
+    lastFocusedHandle = newFocusHandle;
+};
+windowService.StartFocusTracking();
 
 // Escuchar cambios en caliente del archivo config.json (Hot-Reload)
 configService.ConfigChanged += newConfig =>
 {
     Console.ForegroundColor = ConsoleColor.Magenta;
-    Console.WriteLine($"\n🔄 [Hot-Reload] ¡Cambio detectado en config.json! Actualizando parámetros...");
+    Console.WriteLine($"\n🔄 [Hot-Reload] ¡Cambio detectado en config.json! Actualizando parámetros y estilos...");
     Console.ResetColor();
 
+    config = newConfig;
     tilingEngine.InnerGap = newConfig.InnerGap;
     tilingEngine.OuterGap = newConfig.OuterGap;
     RetileWindows();
@@ -85,10 +133,7 @@ void SetupHotkeys(AetherConfig currentConfig)
     foreach (var (binding, actionName) in currentConfig.Keybindings)
     {
         if (!HotkeyParser.TryParse(binding, out var mods, out int vk))
-        {
-            Console.WriteLine($"[Atajo Omitido] Combinación no válida: {binding}");
             continue;
-        }
 
         Action callback = actionName switch
         {
@@ -100,7 +145,6 @@ void SetupHotkeys(AetherConfig currentConfig)
                 }
                 catch
                 {
-                    // Fallback to powershell if wt.exe is not installed
                     Process.Start(new ProcessStartInfo("powershell.exe") { UseShellExecute = true });
                 }
             },
@@ -129,11 +173,8 @@ void SetupHotkeys(AetherConfig currentConfig)
                     User32.SetForegroundWindow(wins[0].Handle);
                 }
             },
-            "Quit" => () =>
-            {
-                isRunning = false;
-            },
-            _ => () => Console.WriteLine($"Acción desconocida: {actionName}")
+            "Quit" => () => isRunning = false,
+            _ => () => { }
         };
 
         hotkeyService.Register(mods, vk, callback);
@@ -144,7 +185,11 @@ SetupHotkeys(config);
 hotkeyService.Start();
 
 Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine("⌨️  Atajos globales activos en segundo plano:");
+Console.WriteLine("🎨 Estilos visuales activos:");
+Console.WriteLine($"   • Borde Activo:   {config.ActiveBorderColor}");
+Console.WriteLine($"   • Borde Inactivo: {config.InactiveBorderColor}");
+Console.WriteLine($"   • Esquinas:       {config.CornerPreference}");
+Console.WriteLine("\n⌨️  Atajos globales activos en segundo plano:");
 foreach (var (binding, action) in config.Keybindings)
 {
     Console.WriteLine($"   • {binding,-18} -> {action}");
@@ -153,18 +198,16 @@ Console.ResetColor();
 
 if (config.AutoTileOnLaunch)
 {
-    Console.WriteLine("\n🚀 AutoTileOnLaunch activado: organizando ventanas iniciales...");
+    Console.WriteLine("\n🚀 AutoTileOnLaunch activado: organizando ventanas y aplicando bordes...");
     RetileWindows();
 }
 
 Console.ForegroundColor = ConsoleColor.Cyan;
 Console.WriteLine("\n✨ AetherWM Daemon está corriendo.");
-Console.WriteLine("💡 Puedes presionar Alt+Shift+T para reorganizar, o Alt+Shift+Enter para abrir una terminal.");
-Console.WriteLine("💡 O edita tu archivo config.json para ver la recarga de márgenes en caliente.");
-Console.WriteLine("Presiona Ctrl+C o la tecla 'Q' en esta consola para salir y restaurar tus ventanas.\n");
+Console.WriteLine("💡 Cambia de ventana con el ratón o Alt+Tab para ver cómo el borde neón salta a la ventana activa.");
+Console.WriteLine("💡 Presiona 'Q' o Ctrl+C en esta consola para salir y restaurar ventanas y bordes originales.\n");
 Console.ResetColor();
 
-// Loop interactivo seguro de consola
 while (isRunning)
 {
     if (Console.KeyAvailable)
@@ -180,12 +223,21 @@ while (isRunning)
 
 // Restauración limpia al salir
 Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine("\n🔄 Restaurando ventanas y apagando AetherWM...");
+Console.WriteLine("\n🔄 Restaurando ventanas y bordes originales de Windows...");
 Console.ResetColor();
 
+windowService.StopFocusTracking();
 hotkeyService.Stop();
+
+// Restaurar bordes y esquinas de Windows a su valor original por defecto
+foreach (var (handle, _) in originalPositions)
+{
+    windowService.SetWindowBorderColor(handle, DwmApi.DWMWA_COLOR_DEFAULT);
+    windowService.SetWindowCornerPreference(handle, DwmApi.DWMWCP_DEFAULT);
+}
+
 windowService.ApplyLayout(originalPositions);
 
 Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine("✅ Ventanas restauradas a su estado original. ¡Hasta luego!\n");
+Console.WriteLine("✅ Sistema restaurado al estado original. ¡Hasta luego!\n");
 Console.ResetColor();
