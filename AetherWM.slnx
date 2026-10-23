@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AetherWM.Core/AetherWM.Core.csproj" />
+    <Project Path="src/AetherWM.Daemon/AetherWM.Daemon.csproj" />
+    <Project Path="src/AetherWM.Platform.Win32/AetherWM.Platform.Win32.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AetherWM.Core.Tests/AetherWM.Core.Tests.csproj" />
+  </Folder>
+</Solution>
