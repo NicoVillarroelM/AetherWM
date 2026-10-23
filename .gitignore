@@ -24,11 +24,19 @@ bld/
 .idea/
 *.sln.iml
 
-## User-specific files
+## User-specific / Local Configuration
 *.rsuser
 *.suo
 *.user
 *.useroptions
+*.local.json
+config.json
+!config.example.json
+*.env
+*.env.*
+*.dmp
+*.dump
+*.trace
 
 ## Dotnet artifacts
 project.lock.json
