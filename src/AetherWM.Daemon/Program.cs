@@ -1,6 +1,12 @@
+using System.Diagnostics;
+using AetherWM.Core.Config;
+using AetherWM.Core.Hotkeys;
 using AetherWM.Core.Interfaces;
 using AetherWM.Core.Models;
 using AetherWM.Core.Tiling;
+using AetherWM.Platform.Win32.Config;
+using AetherWM.Platform.Win32.Hotkeys;
+using AetherWM.Platform.Win32.Native;
 using AetherWM.Platform.Win32.Services;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -15,87 +21,171 @@ Console.WriteLine(@"
 ");
 Console.ResetColor();
 
-Console.WriteLine("⚡ AetherWM Daemon - Sprint 2: Motor de Mosaico (BSP Engine)\n");
+Console.WriteLine("⚡ AetherWM Daemon - Sprint 3 & 4: Atajos Globales y Dotfiles en Caliente\n");
 
+// 1. Cargar Configuración (Dotfile)
+using IConfigService configService = new FileSystemConfigService();
+var config = configService.LoadOrCreateDefault();
+
+Console.ForegroundColor = ConsoleColor.DarkGray;
+Console.WriteLine($"📄 Archivo de configuración: {configService.ConfigFilePath}");
+Console.ResetColor();
+
+// 2. Servicios del sistema
 IWindowService windowService = new Win32WindowService();
-
-var workArea = windowService.GetPrimaryMonitorWorkArea();
-Console.ForegroundColor = ConsoleColor.Yellow;
-Console.WriteLine($"🖥️  Área de trabajo del monitor: {workArea.Width}x{workArea.Height} (Origen: X={workArea.X}, Y={workArea.Y})\n");
-Console.ResetColor();
-
-Console.WriteLine("🔍 Escaneando ventanas gestionables del usuario...");
-var windows = windowService.GetActiveWindows();
-
-if (windows.Count == 0)
-{
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine("No se encontraron ventanas activas de usuario para ordenar.");
-    Console.ResetColor();
-    return;
-}
-
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine($"\n✅ Se detectaron {windows.Count} ventanas activas:");
-Console.ResetColor();
-
-// Limit to top 6 windows for tiling to avoid over-crowding small screens
-var windowsToTile = windows.Take(6).ToList();
-
+using IHotkeyService hotkeyService = new Win32HotkeyService();
 var tilingEngine = new TilingEngine
 {
-    InnerGap = 10,
-    OuterGap = 12
+    InnerGap = config.InnerGap,
+    OuterGap = config.OuterGap
 };
 
-tilingEngine.SyncWindows(windowsToTile.Select(w => w.Handle));
-var calculatedLayout = tilingEngine.GenerateLayout(workArea);
+Dictionary<IntPtr, ScreenRectangle> originalPositions = [];
+bool isRunning = true;
 
-Console.WriteLine($"\n📐 Layout BSP Calculado (Márgenes: Int={tilingEngine.InnerGap}px, Ext={tilingEngine.OuterGap}px):");
-Console.WriteLine($"{"PROCESO",-20} | {"POSICIÓN ANTERIOR",-24} | {"NUEVO MOSAICO BSP",-24}");
-Console.WriteLine(new string('-', 75));
-
-foreach (var win in windowsToTile)
+// Función para retilar ventanas
+void RetileWindows()
 {
-    if (calculatedLayout.TryGetValue(win.Handle, out var newBounds))
+    var workArea = windowService.GetPrimaryMonitorWorkArea();
+    var activeWindows = windowService.GetActiveWindows();
+
+    // Guardar posición inicial si no se tenía
+    foreach (var win in activeWindows)
     {
-        string oldGeom = $"{win.Bounds.Width}x{win.Bounds.Height} (+{win.Bounds.X}+{win.Bounds.Y})";
-        string newGeom = $"{newBounds.Width}x{newBounds.Height} (+{newBounds.X}+{newBounds.Y})";
-        Console.WriteLine($"{win.ProcessName,-20} | {oldGeom,-24} | {newGeom,-24}");
+        originalPositions.TryAdd(win.Handle, win.Bounds);
     }
-}
-Console.WriteLine(new string('-', 75));
 
-bool applyLive = args.Contains("--apply") || args.Contains("-a");
-
-if (applyLive)
-{
-    Console.ForegroundColor = ConsoleColor.Magenta;
-    Console.WriteLine("\n✨ MODO EN VIVO: Aplicando mosaico a las ventanas en pantalla...");
-    Console.ResetColor();
-
-    // Guardar posiciones originales para restaurar al salir
-    var originalPositions = windowsToTile.ToDictionary(w => w.Handle, w => w.Bounds);
-
-    windowService.ApplyLayout(calculatedLayout);
+    var handles = activeWindows.Select(w => w.Handle).Take(6).ToList();
+    tilingEngine.SyncWindows(handles);
+    var layout = tilingEngine.GenerateLayout(workArea);
+    windowService.ApplyLayout(layout);
 
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("✅ Mosaico aplicado correctamente.");
+    Console.WriteLine($"[AetherWM] Mosaico actualizado: {layout.Count} ventanas ordenadas (Gaps: Int={tilingEngine.InnerGap}px, Ext={tilingEngine.OuterGap}px)");
     Console.ResetColor();
-
-    Console.WriteLine("\nPresiona ENTER para restaurar todas las ventanas a su estado original...");
-    Console.ReadLine();
-
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("🔄 Restaurando posiciones originales...");
-    Console.ResetColor();
-    windowService.ApplyLayout(originalPositions);
-    Console.WriteLine("✅ Ventanas restauradas.");
 }
-else
+
+// Escuchar cambios en caliente del archivo config.json (Hot-Reload)
+configService.ConfigChanged += newConfig =>
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("\n💡 Para aplicar el mosaico en vivo en tus pantallas y ver cómo se acomodan:");
-    Console.WriteLine("   dotnet run --project src/AetherWM.Daemon -- --apply");
+    Console.ForegroundColor = ConsoleColor.Magenta;
+    Console.WriteLine($"\n🔄 [Hot-Reload] ¡Cambio detectado en config.json! Actualizando parámetros...");
     Console.ResetColor();
+
+    tilingEngine.InnerGap = newConfig.InnerGap;
+    tilingEngine.OuterGap = newConfig.OuterGap;
+    RetileWindows();
+};
+
+// 3. Mapear Atajos Globales
+void SetupHotkeys(AetherConfig currentConfig)
+{
+    hotkeyService.UnregisterAll();
+
+    foreach (var (binding, actionName) in currentConfig.Keybindings)
+    {
+        if (!HotkeyParser.TryParse(binding, out var mods, out int vk))
+        {
+            Console.WriteLine($"[Atajo Omitido] Combinación no válida: {binding}");
+            continue;
+        }
+
+        Action callback = actionName switch
+        {
+            "SpawnTerminal" => () =>
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(currentConfig.TerminalPath) { UseShellExecute = true });
+                }
+                catch
+                {
+                    // Fallback to powershell if wt.exe is not installed
+                    Process.Start(new ProcessStartInfo("powershell.exe") { UseShellExecute = true });
+                }
+            },
+            "Retile" => () => RetileWindows(),
+            "CloseWindow" => () =>
+            {
+                IntPtr focused = User32.GetForegroundWindow();
+                if (focused != IntPtr.Zero)
+                {
+                    User32.PostMessage(focused, User32.WM_CLOSE, 0, 0);
+                }
+            },
+            "FocusLeft" => () =>
+            {
+                var wins = windowService.GetActiveWindows();
+                if (wins.Count > 1)
+                {
+                    User32.SetForegroundWindow(wins[^1].Handle);
+                }
+            },
+            "FocusRight" => () =>
+            {
+                var wins = windowService.GetActiveWindows();
+                if (wins.Count > 1)
+                {
+                    User32.SetForegroundWindow(wins[0].Handle);
+                }
+            },
+            "Quit" => () =>
+            {
+                isRunning = false;
+            },
+            _ => () => Console.WriteLine($"Acción desconocida: {actionName}")
+        };
+
+        hotkeyService.Register(mods, vk, callback);
+    }
 }
+
+SetupHotkeys(config);
+hotkeyService.Start();
+
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine("⌨️  Atajos globales activos en segundo plano:");
+foreach (var (binding, action) in config.Keybindings)
+{
+    Console.WriteLine($"   • {binding,-18} -> {action}");
+}
+Console.ResetColor();
+
+if (config.AutoTileOnLaunch)
+{
+    Console.WriteLine("\n🚀 AutoTileOnLaunch activado: organizando ventanas iniciales...");
+    RetileWindows();
+}
+
+Console.ForegroundColor = ConsoleColor.Cyan;
+Console.WriteLine("\n✨ AetherWM Daemon está corriendo.");
+Console.WriteLine("💡 Puedes presionar Alt+Shift+T para reorganizar, o Alt+Shift+Enter para abrir una terminal.");
+Console.WriteLine("💡 O edita tu archivo config.json para ver la recarga de márgenes en caliente.");
+Console.WriteLine("Presiona Ctrl+C o la tecla 'Q' en esta consola para salir y restaurar tus ventanas.\n");
+Console.ResetColor();
+
+// Loop interactivo seguro de consola
+while (isRunning)
+{
+    if (Console.KeyAvailable)
+    {
+        var key = Console.ReadKey(intercept: true);
+        if (key.Key == ConsoleKey.Q || (key.Modifiers.HasFlag(ConsoleModifiers.Control) && key.Key == ConsoleKey.C))
+        {
+            break;
+        }
+    }
+    Thread.Sleep(100);
+}
+
+// Restauración limpia al salir
+Console.ForegroundColor = ConsoleColor.Yellow;
+Console.WriteLine("\n🔄 Restaurando ventanas y apagando AetherWM...");
+Console.ResetColor();
+
+hotkeyService.Stop();
+windowService.ApplyLayout(originalPositions);
+
+Console.ForegroundColor = ConsoleColor.Green;
+Console.WriteLine("✅ Ventanas restauradas a su estado original. ¡Hasta luego!\n");
+Console.ResetColor();

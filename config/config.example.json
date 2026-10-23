@@ -1,0 +1,22 @@
+{
+  "InnerGap": 10,
+  "OuterGap": 12,
+  "TerminalPath": "wt.exe",
+  "AutoTileOnLaunch": true,
+  "IgnoredProcesses": [
+    "Progman",
+    "WorkerW",
+    "Shell_TrayWnd",
+    "Shell_SecondaryTrayWnd",
+    "Taskmgr",
+    "SnippingTool"
+  ],
+  "Keybindings": {
+    "Alt+Shift+Enter": "SpawnTerminal",
+    "Alt+Shift+T": "Retile",
+    "Alt+Shift+Q": "CloseWindow",
+    "Alt+Shift+H": "FocusLeft",
+    "Alt+Shift+L": "FocusRight",
+    "Alt+Shift+Escape": "Quit"
+  }
+}
